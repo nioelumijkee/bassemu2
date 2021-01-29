@@ -83,7 +83,7 @@ ifeq ($(UNAME),Darwin)
     EXTENSION = pd_darwin
     SHARED_EXTENSION = dylib
     OS = iphoneos
-    PD_PATH = /Applications/Pd-extended.app/Contents/Resources
+    PD_PATH ?= /Applications/Pd-extended.app/Contents/Resources
     IPHONE_BASE=/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin
     CC=$(IPHONE_BASE)/gcc
     CPP=$(IPHONE_BASE)/cpp
@@ -102,7 +102,7 @@ ifeq ($(UNAME),Darwin)
     EXTENSION = pd_darwin
     SHARED_EXTENSION = dylib
     OS = macosx
-    PD_PATH = /Applications/Pd-extended.app/Contents/Resources
+    PD_PATH ?= /Applications/Pd-extended.app/Contents/Resources
     OPT_CFLAGS = -ftree-vectorize -ftree-vectorizer-verbose=2 -fast
 # build universal 32-bit on 10.4 and 32/64 on newer
     ifeq ($(shell uname -r | sed 's|\([0-9][0-9]*\)\.[0-9][0-9]*\.[0-9][0-9]*|\1|'), 8)
@@ -132,7 +132,7 @@ ifeq ($(UNAME),ANDROID)
   EXTENSION = pd_linux
   SHARED_EXTENSION = so
   OS = android
-  PD_PATH = /usr
+  PD_PATH ?= /usr
   NDK_BASE := /usr/local/android-ndk
   NDK_PLATFORM_VERSION := 5
   NDK_SYSROOT=$(NDK_BASE)/platforms/android-$(NDK_PLATFORM_VERSION)/arch-arm
@@ -154,7 +154,7 @@ ifeq ($(UNAME),Linux)
   EXTENSION = pd_linux
   SHARED_EXTENSION = so
   OS = linux
-  PD_PATH = /usr
+  PD_PATH ?= /usr
   OPT_CFLAGS = -O6 -funroll-loops -fomit-frame-pointer
   ALL_CFLAGS += -fPIC
   ALL_LDFLAGS += -rdynamic -shared -fPIC -Wl,-rpath,"\$$ORIGIN",--enable-new-dtags
@@ -170,7 +170,7 @@ ifeq ($(UNAME),GNU)
   EXTENSION = pd_linux
   SHARED_EXTENSION = so
   OS = linux
-  PD_PATH = /usr
+  PD_PATH ?= /usr
   OPT_CFLAGS = -O6 -funroll-loops -fomit-frame-pointer
   ALL_CFLAGS += -fPIC
   ALL_LDFLAGS += -rdynamic -shared -fPIC -Wl,-rpath,"\$$ORIGIN",--enable-new-dtags
@@ -186,7 +186,7 @@ ifeq ($(UNAME),GNU/kFreeBSD)
   EXTENSION = pd_linux
   SHARED_EXTENSION = so
   OS = linux
-  PD_PATH = /usr
+  PD_PATH ?= /usr
   OPT_CFLAGS = -O6 -funroll-loops -fomit-frame-pointer
   ALL_CFLAGS += -fPIC
   ALL_LDFLAGS += -rdynamic -shared -fPIC -Wl,-rpath,"\$$ORIGIN",--enable-new-dtags
@@ -201,7 +201,7 @@ ifeq (CYGWIN,$(findstring CYGWIN,$(UNAME)))
   EXTENSION = dll
   SHARED_EXTENSION = dll
   OS = cygwin
-  PD_PATH = $(shell cygpath $$PROGRAMFILES)/pd
+  PD_PATH ?= $(shell cygpath $$PROGRAMFILES)/pd
   OPT_CFLAGS = -O6 -funroll-loops -fomit-frame-pointer
   ALL_CFLAGS += 
   ALL_LDFLAGS += -rdynamic -shared -L"$(PD_PATH)/src" -L"$(PD_PATH)/bin"
@@ -216,7 +216,7 @@ ifeq (MINGW,$(findstring MINGW,$(UNAME)))
   EXTENSION = dll
   SHARED_EXTENSION = dll
   OS = windows
-  PD_PATH = $(shell cd "$$PROGRAMFILES/pd" && pwd)
+  PD_PATH ?= $(shell cd "$$PROGRAMFILES/pd" && pwd)
   # MinGW doesn't seem to include cc so force gcc
   CC=gcc
   OPT_CFLAGS = -O3 -funroll-loops -fomit-frame-pointer
