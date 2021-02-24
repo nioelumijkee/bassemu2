@@ -1,0 +1,7 @@
+#N canvas 100 100 420 420 10;
+#X text 20 20 META this is prototype of a libdir meta file;
+#X text 20 40 NAME bassemu2~ ;
+#X text 20 60 AUTHOR Christian Klippel / NioNiu ;
+#X text 20 80 DESCRIPTION transistor bass emulation / slight modification ;
+#X text 20 100 LICENSE GPL v2 ;
+#X text 20 120 VERSION 0.1 ;
