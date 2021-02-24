@@ -13,6 +13,10 @@ static t_class *bassemu2_class;
 #define PI_2   	6.28218530717958647692
 #define sinfact (2. * 6.28328)
 
+#define LIM_NO 0
+#define LIM_HARD 1
+#define LIM_SINE 2
+
 typedef struct _bassemu2
 {
   t_object x_obj;
@@ -222,20 +226,22 @@ static t_int *bassemu2_perform(t_int *ww)
 	  x->vcf_d2 = x->vcf_d1;
 	  x->vcf_envpos++;
 	  x->vcf_d1 = ts;
-	  
-	  switch((int)x->limit_type)
+
+
+	  // limit
+	  switch(x->limit_type)
 	    {
-	    case 1 : // hard limit
+	    case LIM_HARD :
 	      if (ts >  0.999) ts =  0.999;
 	      if (ts < -0.999) ts = -0.999;
 	      *outbuf++ = ts;
 	      break;
 	      
-	    case 2 : // sine limiting
+	    case LIM_SINE :
 	      *outbuf++ = sin(ts);
 	      break;
 	      
-	    default : // no limiting et al
+	    default :
 	      *outbuf++ = ts;
 	      break;
 	    }
@@ -382,7 +388,7 @@ static void bassemu2_glide(t_bassemu2 *x, t_floatarg f)
 // --------------------------------------------------------------------------- #
 static void bassemu2_limit(t_bassemu2 *x, t_floatarg f)
 {
-  if ((f >= 0) && (f <=2)) x->limit_type = f;
+  x->limit_type = f;
 }
 
 // --------------------------------------------------------------------------- #
@@ -485,13 +491,14 @@ static void bassemu2_reset(t_bassemu2 *x)
   x->vcf_e0 = 0.0;
   x->vcf_e1 = 0.0;
   x->vcf_envpos = 64;
+
+  x->vca_mode = 2 ; // attack (0) / decay (1) / silent (2) mode
   x->vca_attack = (float)(1.0f - 0.94406088f);
   x->vca_decay  = (float)(0.99897516f);
   x->vca_a = 0.0;
   x->vca_a0 = 0.5;
-  x->vca_mode = 2 ; // attack (0) / decay (1) / silent (2) mode
   
-  x->limit_type = 2;
+  x->limit_type = LIM_NO;
   
   x->ext_type = 0;
   x->ext_pre	= 0;
@@ -507,8 +514,8 @@ static void *bassemu2_new()
 {
   t_bassemu2 *x = (t_bassemu2 *)pd_new(bassemu2_class);
   outlet_new(&x->x_obj, gensym("signal"));
-  bassemu2_reset(x);
   x->sr = 44100.;
+  bassemu2_reset(x);
   return (x);
 }
 
