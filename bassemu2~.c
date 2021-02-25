@@ -8,8 +8,6 @@
 // --------------------------------------------------------------------------- #
 static t_class *bassemu2_class;
 
-#define VER_MAJ	 0
-#define VER_MIN	 3
 #define PI_2   	 6.282185
 #define SINFACT  12.56437
 #define LIM_NO   0
@@ -61,7 +59,6 @@ typedef struct _bassemu2
   int vca_mode;
   int limit_type;
   float sr;
-  float dummy;
 } t_bassemu2;
 
 
@@ -93,7 +90,6 @@ static void bassemu2_calc_vco_inc(t_bassemu2 *x)
 // --------------------------------------------------------------------------- #
 static void bassemu2_gate(t_bassemu2 *x, t_floatarg f)
 {
-  // calculate note and trigger vca
   if(f > 0)
     {
       x->vca_mode = VCA_ATT;
@@ -141,6 +137,8 @@ static void bassemu2_tune(t_bassemu2 *x, t_floatarg f)
 // --------------------------------------------------------------------------- #
 static void bassemu2_cutoff(t_bassemu2 *x, t_floatarg f)
 {
+  if      (f > 1.0) f = 1.0;
+  else if (f < 0.0) f = 0.0;
   x->vcf_cutoff = f;
   bassemu2_recalc(x);
 }
@@ -148,10 +146,8 @@ static void bassemu2_cutoff(t_bassemu2 *x, t_floatarg f)
 // --------------------------------------------------------------------------- #
 static void bassemu2_reso(t_bassemu2 *x, t_floatarg f)
 {
-  if (f > 1.0)
-    f = 1.0;
-  else if (f < 0.0)
-    f = 0.0;
+  if      (f > 1.0) f = 1.0;
+  else if (f < 0.0) f = 0.0;
   f = f*1.82;
   x->vcf_reso = f;
   x->vcf_rescoeff = exp(-1.20 + 3.455*(x->vcf_reso));
@@ -161,6 +157,8 @@ static void bassemu2_reso(t_bassemu2 *x, t_floatarg f)
 // --------------------------------------------------------------------------- #
 static void bassemu2_envmod(t_bassemu2 *x, t_floatarg f)
 {
+  if      (f > 1.0) f = 1.0;
+  else if (f < 0.0) f = 0.0;
   x->vcf_envmod = f;
   bassemu2_recalc(x);
 }
@@ -168,10 +166,8 @@ static void bassemu2_envmod(t_bassemu2 *x, t_floatarg f)
 // --------------------------------------------------------------------------- #
 static void bassemu2_decay(t_bassemu2 *x, t_floatarg f)
 {
-  if (f > 1.0)
-    f = 1.0;
-  else if (f < 0.0)
-    f = 0.0;
+  if      (f > 1.0) f = 1.0;
+  else if (f < 0.0) f = 0.0;
   f = f*f*f;
   f = 0.044 + (2.2 * f);
   f = f * x->sr;
@@ -181,9 +177,9 @@ static void bassemu2_decay(t_bassemu2 *x, t_floatarg f)
 // --------------------------------------------------------------------------- #
 static void bassemu2_pw(t_bassemu2 *x, t_floatarg f)
 {
+  if      (f > 1.0) f = 1.0;
+  else if (f < 0.0) f = 0.0;
   x->pw = f;
-  if (x->pw > 1.0)   x->pw = 1.0;
-  if (x->pw < 0.0)   x->pw = 0.0;
 }
 
 // --------------------------------------------------------------------------- #
