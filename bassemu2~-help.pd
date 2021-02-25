@@ -70,7 +70,7 @@
 #X obj 648 100 * 0.01;
 #X obj 627 118 *~ 0;
 #X obj 13 16 tgl 15 0 empty empty random_sequence 17 7 0 10 -262144
--1 -1 0 1;
+-1 -1 1 1;
 #X obj 13 51 metro 200;
 #X obj 38 34 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
 -262144 -1 -1 101 256;
@@ -97,11 +97,16 @@
 #X text 189 243 Reset note.;
 #X obj 628 45 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
 -262144 -1 -1 100 256;
-#X obj 201 167 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 1
+#X obj 201 167 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 0
 1;
 #X text 222 162 Gate;
 #X msg 201 187 gate \$1;
 #X obj 201 208 s \$0-to;
+#X text 344 42 0-1;
+#X text 394 42 0-1;
+#X text 434 42 0-1;
+#X text 484 42 0-1;
+#X text 534 32 0-1;
 #X connect 5 0 7 0;
 #X connect 7 0 6 0;
 #X connect 8 0 10 0;
