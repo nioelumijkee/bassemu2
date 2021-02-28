@@ -70,8 +70,10 @@ static void bassemu2_recalc(t_bassemu2 *x)
   x->vcf_e0 *=M_PI/x->sr;
   x->vcf_e1 *=M_PI/x->sr;
   x->vcf_e1 -= x->vcf_e0;
+  if (x->vcf_e1 > 1.5) x->vcf_e1 = 1.5;
   x->vcf_envpos = ENV_INC;
-  x->vcf_acor = 1.0 - (x->vcf_reso * 0.45);
+  x->vcf_acor = 1.0 - (x->vcf_reso * 0.25);
+  post("%f %f", x->vcf_e0, x->vcf_e1);
 }
 
 // --------------------------------------------------------------------------- #
@@ -148,7 +150,7 @@ static void bassemu2_reso(t_bassemu2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  f = f*1.82;
+  f = f*1.42;
   x->vcf_reso = f;
   x->vcf_rescoeff = exp(-1.20 + 3.455*(x->vcf_reso));
   bassemu2_recalc(x);
