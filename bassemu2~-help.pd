@@ -13,7 +13,7 @@
 #X obj 891 242 s \$0-to;
 #X msg 891 224 hpf \$1;
 #X obj 752 76 vradio 15 1 1 3 empty empty empty 0 -6 0 8 -262144 -1
--1 1;
+-1 0;
 #X obj 752 142 s \$0-to;
 #X msg 752 124 limit \$1;
 #X msg 752 208 tune \$1;
@@ -27,13 +27,13 @@
 #X text 771 92 Hard Limiting;
 #X text 771 107 Sine Limiting;
 #X obj 345 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 -262130
--1 -1 9300 1;
+-1 -1 5500 1;
 #X obj 391 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 -261682
--1 -1 12700 1;
+-1 -1 11700 1;
 #X obj 437 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 -262130
--1 -1 12700 1;
+-1 -1 6900 1;
 #X obj 483 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 -262130
--1 -1 4400 1;
+-1 -1 8100 1;
 #X obj 529 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 -228856
 -1 -1 5700 1;
 #X text 732 58 Output-Signal Limiting:;
@@ -73,7 +73,7 @@
 -1 -1 1 1;
 #X obj 13 51 metro 200;
 #X obj 38 34 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
--262144 -1 -1 117 256;
+-262144 -1 -1 141 256;
 #X obj 52 88 random 42;
 #X obj 13 69 t b b b;
 #X obj 13 233 delay;
@@ -90,7 +90,7 @@
 #X obj 119 88 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
 -262144 -1 -1 26 256;
 #X obj 78 161 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
--262144 -1 -1 48 256;
+-262144 -1 -1 66 256;
 #X obj 78 177 * 0.01;
 #X obj 78 195 t b f;
 #X text 443 5 bassemu2~;

@@ -73,7 +73,7 @@ static void bassemu2_recalc(t_bassemu2 *x)
   if (x->vcf_e1 > 1.5) x->vcf_e1 = 1.5;
   x->vcf_envpos = ENV_INC;
   x->vcf_acor = 1.0 - (x->vcf_reso * 0.25);
-  post("%f %f", x->vcf_e0, x->vcf_e1);
+  /* post("%f %f", x->vcf_e0, x->vcf_e1); */
 }
 
 // --------------------------------------------------------------------------- #
