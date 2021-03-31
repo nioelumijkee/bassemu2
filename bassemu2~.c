@@ -10,18 +10,14 @@ static t_class *bassemu2_class;
 
 #define PI_2   	 6.282185
 #define SINFACT  12.56437
-#define LIM_NO   0
-#define LIM_HARD 1
-#define LIM_SINE 2
 #define VCO_SAW  0
 #define VCO_RECT 1
-#define VCO_TRI  2
-#define VCO_SIN  3
-#define VCO_EXT  4
+#define VCO_EXT  2
 #define ENV_INC  8
 #define VCA_ATT  0
 #define VCA_DEC  1
 #define VCA_SIL  2
+#define HPFREQ   100.0
 
 
 typedef struct _bassemu2
@@ -30,11 +26,11 @@ typedef struct _bassemu2
   float vco_inc;
   float cur_wave;
   float ideal_wave;
-  float delta;
+  float hp_f;
+  float hp_z;
   float vco_count;
   float pw;
   int vco_type;
-  int hpf;
   float pitch;
   float tune;
   float vcf_cutoff;
@@ -57,7 +53,6 @@ typedef struct _bassemu2
   float vca_a;
   float vca_a0;
   int vca_mode;
-  int limit_type;
   float sr;
 } t_bassemu2;
 
@@ -70,10 +65,9 @@ static void bassemu2_recalc(t_bassemu2 *x)
   x->vcf_e0 *=M_PI/x->sr;
   x->vcf_e1 *=M_PI/x->sr;
   x->vcf_e1 -= x->vcf_e0;
-  if (x->vcf_e1 > 1.5) x->vcf_e1 = 1.5;
+  if (x->vcf_e1 > 1.0) x->vcf_e1 = 1.0; // clip
   x->vcf_envpos = ENV_INC;
-  x->vcf_acor = 1.0 - (x->vcf_reso * 0.25);
-  /* post("%f %f", x->vcf_e0, x->vcf_e1); */
+  x->vcf_acor = 1.0 - (x->vcf_reso * 0.45); // comp res -> lvl
 }
 
 // --------------------------------------------------------------------------- #
@@ -115,18 +109,6 @@ static void bassemu2_pitch(t_bassemu2 *x, t_floatarg f)
 static void bassemu2_vco(t_bassemu2 *x, t_floatarg f)
 {
   x->vco_type = f;
-}
-
-// --------------------------------------------------------------------------- #
-static void bassemu2_hpf(t_bassemu2 *x, t_floatarg f)
-{
-  x->hpf = f;
-}
-
-// --------------------------------------------------------------------------- #
-static void bassemu2_limit(t_bassemu2 *x, t_floatarg f)
-{
-  x->limit_type = f;
 }
 
 // --------------------------------------------------------------------------- #
@@ -196,6 +178,8 @@ static void bassemu2_reset(t_bassemu2 *x)
   x->vca_a0 = 0.5;
   x->vca_attack = 1.0 - 0.94406088;
   x->vca_decay  = 0.99897516;
+  x->hp_f = (PI_2 / x->sr) * HPFREQ;
+  x->hp_z = 0.0;
 }
 
 // --------------------------------------------------------------------------- #
@@ -206,6 +190,7 @@ static t_int *bassemu2_perform(t_int *ww)
   t_float *outbuf = (t_float *)(ww[3]);
   int n = (int)(ww[4]);
   
+  float a;
   float w = 0;
   float k = 0;
   float ts;
@@ -258,38 +243,6 @@ static t_int *bassemu2_perform(t_int *ww)
 	      x->cur_wave *= 0.8;
 	      break;
 	      
-	    case VCO_TRI :
-	      if (x->vco_count == -0.5 )
-		x->ideal_wave = (x->vco_count + 0.000001);
-	      else
-		{
-		  if (x->vco_count <= 0.0 )
-		    x->ideal_wave = (x->ideal_wave + (x->vco_inc * 2));
-		  else
-		    x->ideal_wave = (x->ideal_wave - (x->vco_inc * 2));
-		}
-	      x->vco_count += x->vco_inc;
-	      if( x->vco_count <= 0.0 )
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.95));
-	      else
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.9));
-	      if (x->vco_count > 0.5)
-		x->vco_count = -0.5;
-	      x->cur_wave *= 1.4;
-	      break;
-	      
-	    case VCO_SIN :
-	      x->ideal_wave = (sin(SINFACT * (x->vco_count + 0.5)) / 2);
-	      x->vco_count += (x->vco_inc * 0.5);
-	      if( x->vco_count <= 0.0 )
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.95));
-	      else
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.9));
-	      if (x->vco_count > 0.5)
-		x->vco_count = -0.5;
-	      x->cur_wave *= 1.4;
-	      break;
-
 	    case VCO_EXT :
 	      x->cur_wave = (*inbuf++ * 0.48);
 	      // clip
@@ -303,17 +256,8 @@ static t_int *bassemu2_perform(t_int *ww)
 	  
 	  
 	  // hpf
-	  if(x->hpf)
-	    {
-	      x->delta = x->delta * x->cur_wave;
-	      x->delta = x->delta * 0.99;
-	      ts = (x->delta * 2.0) + 0.5;
-	      x->delta = x->delta - x->cur_wave;
-	    }
-	  else
-	    {
-	      ts = x->cur_wave;
-	    }
+	  x->hp_z = (x->cur_wave - x->hp_z) * x->hp_f + x->hp_z;
+	  ts = x->cur_wave - x->hp_z;
 
 	  
 	  // update vca
@@ -344,24 +288,12 @@ static t_int *bassemu2_perform(t_int *ww)
 	  x->vcf_envpos++;
 	  x->vcf_d1 = ts;
 
-	  // limit
+	  // limit (soft-never-clip)
 	  ts *= 2.5;
-	  switch(x->limit_type)
-	    {
-	    case LIM_HARD :
-	      if (ts >  0.999) ts =  0.999;
-	      if (ts < -0.999) ts = -0.999;
-	      *outbuf++ = ts;
-	      break;
-	      
-	    case LIM_SINE :
-	      *outbuf++ = sin(ts);
-	      break;
-	      
-	    default :
-	      *outbuf++ = ts;
-	      break;
-	    }
+	  a = ts;
+	  if (a < 0.) a = 0.-a; // abs
+	  a = a * 0.8;
+	  *(outbuf++) = ts / (a + 1.);
 	  
 	}
     } //end vcamode != 2
@@ -403,8 +335,6 @@ void bassemu2_tilde_setup(void)
   class_addmethod(bassemu2_class,(t_method)bassemu2_pitch,gensym("pitch"),A_DEFFLOAT, 0);
   class_addmethod(bassemu2_class,(t_method)bassemu2_tune,gensym("tune"),A_DEFFLOAT, 0);
   class_addmethod(bassemu2_class,(t_method)bassemu2_vco,gensym("vco"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_hpf,gensym("hpf"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_limit,gensym("limit"),A_DEFFLOAT, 0);
   class_addmethod(bassemu2_class,(t_method)bassemu2_cutoff,gensym("cutoff"),A_DEFFLOAT, 0);
   class_addmethod(bassemu2_class,(t_method)bassemu2_reso,gensym("reso"),A_DEFFLOAT, 0);
   class_addmethod(bassemu2_class,(t_method)bassemu2_envmod,gensym("envmod"),A_DEFFLOAT, 0);
