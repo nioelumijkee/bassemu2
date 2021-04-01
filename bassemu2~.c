@@ -289,7 +289,7 @@ static t_int *bassemu2_perform(t_int *ww)
 	  x->vcf_d1 = ts;
 
 	  // limit (soft-never-clip)
-	  ts *= 2.5;
+	  ts *= 1.25;
 	  a = ts;
 	  if (a < 0.) a = 0.-a; // abs
 	  a = a * 0.8;
