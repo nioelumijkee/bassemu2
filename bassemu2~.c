@@ -24,7 +24,7 @@ typedef struct _bassemu2
 {
   t_object x_obj;
   float vco_inc;
-  float cur_wave;
+  float sig;
   float ideal_wave;
   float hp_f;
   float hp_z;
@@ -163,7 +163,7 @@ static void bassemu2_pw(t_bassemu2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  x->pw = f;
+  x->pw = f - 0.5;
 }
 
 // --------------------------------------------------------------------------- #
@@ -218,36 +218,36 @@ static t_int *bassemu2_perform(t_int *ww)
 	  switch(x->vco_type)
 	    {
 	    case VCO_SAW :
-	      x->ideal_wave = sin(x->vco_count);
+	      // count
 	      x->vco_count += x->vco_inc;
-	      if( x->vco_count <= 0.0 )
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.95));
-	      else
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.9));
 	      if (x->vco_count > 0.5)
 		x->vco_count = -0.5;
+	      
+	      // saw
+	      x->sig = (x->vco_count + 0.5) * 10.0;
+	      if (x->sig > 1.0) x->sig = 1.0;
+	      x->sig -= 0.5;
+	      x->sig *= 2.5;
 	      break;
 	      
 	    case VCO_RECT :
-	      if ((x->vco_count+0.5) <= x->pw)
-		x->ideal_wave = -0.5;
-	      else
-		x->ideal_wave = 0.5;
+	      // count
 	      x->vco_count += x->vco_inc;
-	      if( x->vco_count <= 0.0 )
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.95));
-	      else
-		x->cur_wave = (x->cur_wave + ((x->ideal_wave - x->cur_wave) * 0.9));
 	      if (x->vco_count > 0.5)
 		x->vco_count = -0.5;
-	      x->cur_wave *= 0.8;
+
+	      // pw
+	      if (x->vco_count <= x->pw)
+		x->sig = -0.35;
+	      else
+		x->sig = 0.45;
 	      break;
 	      
 	    case VCO_EXT :
-	      x->cur_wave = (*inbuf++ * 0.48);
+	      x->sig = (*inbuf++ * 0.48);
 	      // clip
-	      if (x->cur_wave < -0.48) x->cur_wave = -0.48;
-	      if (x->cur_wave > 0.48)  x->cur_wave = 0.48;
+	      if (x->sig < -0.48) x->sig = -0.48;
+	      if (x->sig > 0.48)  x->sig = 0.48;
 	      break;
 
 	    default : 
@@ -256,8 +256,8 @@ static t_int *bassemu2_perform(t_int *ww)
 	  
 	  
 	  // hpf
-	  x->hp_z = (x->cur_wave - x->hp_z) * x->hp_f + x->hp_z;
-	  ts = x->cur_wave - x->hp_z;
+	  x->hp_z = (x->sig - x->hp_z) * x->hp_f + x->hp_z;
+	  ts = x->sig - x->hp_z;
 
 	  
 	  // update vca
