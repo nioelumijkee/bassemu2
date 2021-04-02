@@ -177,7 +177,7 @@ static void bassemu2_reset(t_bassemu2 *x)
   x->vca_a = 0.0;
   x->vca_a0 = 0.5;
   x->vca_attack = 1.0 - 0.94406088;
-  x->vca_decay  = 0.99897516;
+  x->vca_decay  = 0.96797516; // <- decay
   x->hp_f = (PI_2 / x->sr) * HPFREQ;
   x->hp_z = 0.0;
 }
