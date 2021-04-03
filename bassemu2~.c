@@ -8,7 +8,8 @@
 // --------------------------------------------------------------------------- #
 static t_class *bassemu2_class;
 
-#define PI_2   	 6.282185
+#define PI   	 3.141592653589793
+#define PI_2   	 6.283185307179586
 #define SINFACT  12.56437
 #define VCO_SAW  0
 #define VCO_RECT 1
@@ -17,7 +18,7 @@ static t_class *bassemu2_class;
 #define VCA_ATT  0
 #define VCA_DEC  1
 #define VCA_SIL  2
-#define HPFREQ   100.0
+#define HPFREQ   50.0
 
 
 typedef struct _bassemu2
@@ -60,14 +61,17 @@ typedef struct _bassemu2
 // --------------------------------------------------------------------------- #
 static void bassemu2_recalc(t_bassemu2 *x)
 {
-  x->vcf_e1 = exp(6.109 + 1.5876*(x->vcf_envmod) + 2.1553*(x->vcf_cutoff) - 1.2*(1.0-x->vcf_reso));
-  x->vcf_e0 = exp(5.613 - 0.8*(x->vcf_envmod) + 2.1553*(x->vcf_cutoff) - 0.7696*(1.0-x->vcf_reso));
-  x->vcf_e0 *=M_PI/x->sr;
-  x->vcf_e1 *=M_PI/x->sr;
+  x->vcf_e1 = exp(6.109 + 1.5876*(x->vcf_envmod) 
+		  + 2.1553*(x->vcf_cutoff) - 1.2*(1.0-x->vcf_reso));
+  x->vcf_e0 = exp(5.613 - 0.8*(x->vcf_envmod) 
+		  + 2.1553*(x->vcf_cutoff) - 0.7696*(1.0-x->vcf_reso));
+  x->vcf_e0 *=PI/x->sr;
+  x->vcf_e1 *=PI/x->sr;
   x->vcf_e1 -= x->vcf_e0;
   if (x->vcf_e1 > 1.0) x->vcf_e1 = 1.0; // clip
   x->vcf_envpos = ENV_INC;
   x->vcf_acor = 1.0 - (x->vcf_reso * 0.45); // comp res -> lvl
+  if (x->vcf_acor < 0.0) x->vcf_acor = 0.0; // clip
 }
 
 // --------------------------------------------------------------------------- #
@@ -89,8 +93,10 @@ static void bassemu2_gate(t_bassemu2 *x, t_floatarg f)
   if(f > 0)
     {
       x->vca_mode = VCA_ATT;
-      x->vcf_c0 = x->vcf_e1;
       x->vcf_envpos = ENV_INC;
+      x->vcf_c0 = x->vcf_e1;
+      x->vcf_d1 = 0.0; /* */
+      x->vcf_d2 = 0.0;
     }
   else
     {
@@ -132,7 +138,7 @@ static void bassemu2_reso(t_bassemu2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  f = f*1.42;
+  f = f*1.475;
   x->vcf_reso = f;
   x->vcf_rescoeff = exp(-1.20 + 3.455*(x->vcf_reso));
   bassemu2_recalc(x);
@@ -176,8 +182,8 @@ static void bassemu2_reset(t_bassemu2 *x)
   x->vca_mode = VCA_SIL;
   x->vca_a = 0.0;
   x->vca_a0 = 0.5;
-  x->vca_attack = 1.0 - 0.94406088;
-  x->vca_decay  = 0.96797516; // <- decay
+  x->vca_attack = 1.0 - ((1.0 / x->sr) / 0.0008); // sec
+  x->vca_decay  = 1.0 - ((1.0 / x->sr) / 0.0093); // sec
   x->hp_f = (PI_2 / x->sr) * HPFREQ;
   x->hp_z = 0.0;
 }
@@ -224,7 +230,7 @@ static t_int *bassemu2_perform(t_int *ww)
 		x->vco_count = -0.5;
 	      
 	      // saw
-	      x->sig = (x->vco_count + 0.5) * 10.0;
+	      x->sig = (x->vco_count + 0.5) * 8.0;
 	      if (x->sig > 1.0) x->sig = 1.0;
 	      x->sig -= 0.5;
 	      x->sig *= 2.5;
@@ -238,9 +244,9 @@ static t_int *bassemu2_perform(t_int *ww)
 
 	      // pw
 	      if (x->vco_count <= x->pw)
-		x->sig = -0.35;
+		x->sig = -0.82;
 	      else
-		x->sig = 0.45;
+		x->sig = 0.8;
 	      break;
 	      
 	    case VCO_EXT :
@@ -269,7 +275,7 @@ static t_int *bassemu2_perform(t_int *ww)
 
 	    case VCA_DEC :
 	      x->vca_a *= x->vca_decay;
-	      if(x->vca_a < (1/65536.0))
+	      if(x->vca_a < (0.00001))
 		{
 		  x->vca_a = 0;
 		  x->vca_mode = VCA_SIL;
@@ -283,18 +289,19 @@ static t_int *bassemu2_perform(t_int *ww)
 	  // compute sample
 	  ts = ts * x->vca_a;
 	  ts = ts * x->vcf_acor;
-	  ts = x->vcf_a * x->vcf_d1 + x->vcf_b * x->vcf_d2 + x->vcf_c * ts;
+	  ts = x->vcf_a * x->vcf_d1
+	    +  x->vcf_b * x->vcf_d2
+	    +  x->vcf_c * ts;
 	  x->vcf_d2 = x->vcf_d1;
-	  x->vcf_envpos++;
 	  x->vcf_d1 = ts;
+	  x->vcf_envpos++;
 
 	  // limit (soft-never-clip)
-	  ts *= 1.25;
+	  ts *= 0.45;
 	  a = ts;
 	  if (a < 0.) a = 0.-a; // abs
 	  a = a * 0.8;
 	  *(outbuf++) = ts / (a + 1.);
-	  
 	}
     } //end vcamode != 2
   else
