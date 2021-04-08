@@ -14,7 +14,7 @@ static t_class *bassemu2_class;
 #define VCO_SAW  0
 #define VCO_RECT 1
 #define VCO_EXT  2
-#define ENV_INC  8
+#define ENV_INC  32
 #define VCA_ATT  0
 #define VCA_DEC  1
 #define VCA_SIL  2
@@ -39,15 +39,15 @@ typedef struct _bassemu2
   float vcf_envdecay;
   float vcf_reso;
   float vcf_rescoeff;
-  float vcf_a;
+  float vcf_a; /* coef */
   float vcf_b;
   float vcf_c;
-  float vcf_c0;
-  float vcf_d1;
+  float vcf_env; /* filter envelope */
+  float vcf_d1; /* z */
   float vcf_d2;
-  float vcf_e0;
+  float vcf_e0; /* */
   float vcf_e1;
-  float vcf_acor;
+  float vcf_acor; /* res -> a cor */
   int vcf_envpos;
   float vca_attack;
   float vca_decay;
@@ -61,15 +61,16 @@ typedef struct _bassemu2
 // --------------------------------------------------------------------------- #
 static void bassemu2_recalc(t_bassemu2 *x)
 {
-  x->vcf_e1 = exp(6.109 + 1.5876*(x->vcf_envmod) 
-		  + 2.1553*(x->vcf_cutoff) - 1.2*(1.0-x->vcf_reso));
-  x->vcf_e0 = exp(5.613 - 0.8*(x->vcf_envmod) 
-		  + 2.1553*(x->vcf_cutoff) - 0.7696*(1.0-x->vcf_reso));
+  x->vcf_e0 = exp(5.613 - 0.8000*(x->vcf_envmod) + 2.1553*(x->vcf_cutoff) - 0.7696*(1.0 - x->vcf_reso));
   x->vcf_e0 *=PI/x->sr;
+
+  x->vcf_e1 = exp(6.109 + 1.5876*(x->vcf_envmod) + 2.1553*(x->vcf_cutoff) - 1.2000*(1.0 - x->vcf_reso));
   x->vcf_e1 *=PI/x->sr;
-  x->vcf_e1 -= x->vcf_e0;
+  x->vcf_e1 = x->vcf_e1 - x->vcf_e0;
   if (x->vcf_e1 > 1.0) x->vcf_e1 = 1.0; // clip
+
   x->vcf_envpos = ENV_INC;
+
   x->vcf_acor = 1.0 - (x->vcf_reso * 0.45); // comp res -> lvl
   if (x->vcf_acor < 0.0) x->vcf_acor = 0.0; // clip
 }
@@ -94,7 +95,7 @@ static void bassemu2_gate(t_bassemu2 *x, t_floatarg f)
     {
       x->vca_mode = VCA_ATT;
       x->vcf_envpos = ENV_INC;
-      x->vcf_c0 = x->vcf_e1;
+      x->vcf_env = x->vcf_e1;
       x->vcf_d1 = 0.0; /* */
       x->vcf_d2 = 0.0;
     }
@@ -211,13 +212,15 @@ static t_int *bassemu2_perform(t_int *ww)
 	  // update vcf
 	  if(x->vcf_envpos >= ENV_INC)
 	    {
-	      w = x->vcf_e0 + x->vcf_c0;
+	      w = x->vcf_e0 + x->vcf_env;
 	      k = exp(-w/x->vcf_rescoeff);
-	      x->vcf_c0 *= x->vcf_envdecay;
+
 	      x->vcf_a = 2.0*cos(2.0*w) * k;
 	      x->vcf_b = -k*k;
 	      x->vcf_c = 1.0 - x->vcf_a - x->vcf_b;
+
 	      x->vcf_envpos = 0;
+	      x->vcf_env *= x->vcf_envdecay;
 	    }
 	  
 	  // vco or ext in
@@ -289,11 +292,13 @@ static t_int *bassemu2_perform(t_int *ww)
 	  // compute sample
 	  ts = ts * x->vca_a;
 	  ts = ts * x->vcf_acor;
+	  // filter
 	  ts = x->vcf_a * x->vcf_d1
 	    +  x->vcf_b * x->vcf_d2
 	    +  x->vcf_c * ts;
 	  x->vcf_d2 = x->vcf_d1;
 	  x->vcf_d1 = ts;
+	  // env
 	  x->vcf_envpos++;
 
 	  // limit (soft-never-clip)
