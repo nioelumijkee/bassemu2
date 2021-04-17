@@ -139,7 +139,7 @@ static void bassemu2_reso(t_bassemu2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  f = f*1.475;
+  f = f*1.55;
   x->vcf_reso = f;
   x->vcf_rescoeff = exp(-1.20 + 3.455*(x->vcf_reso));
   bassemu2_recalc(x);
