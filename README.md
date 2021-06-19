@@ -1,3 +1,5 @@
+#### forked from [puredata.info](https://git.puredata.info/cgit/svn2git/libraries/bassemu~.git/ "puredata.info")
+
 ## bassemu2~
 
 
