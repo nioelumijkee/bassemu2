@@ -6,27 +6,29 @@
 #include "math.h"
 
 // --------------------------------------------------------------------------- #
-static t_class *bassemu2_class;
+static t_class *be2_class;
 
-#define PI   	 3.141592653589793
-#define PI_2   	 6.283185307179586
-#define SINFACT  12.56437
-#define VCO_SAW  0
-#define VCO_RECT 1
-#define VCO_EXT  2
-#define ENV_INC  32
-#define VCA_ATT  0
-#define VCA_DEC  1
-#define VCA_SIL  2
-#define HPFREQ   50.0
+#define PI   	   3.141592653589793
+#define PI_2   	   6.283185307179586
+#define SINFACT    12.56437
+#define VCO_SAW    0
+#define VCO_RECT   1
+#define VCO_EXT    2
+#define VCA_ATT    0
+#define VCA_DEC    1
+#define VCA_SIL    2
+#define HPFREQ     50.0
+#define FEGLPFREQ  300.0
+#define SMFREQ     22.0
 
 
-typedef struct _bassemu2
+typedef struct _be2
 {
   t_object x_obj;
   float vco_inc;
   float sig;
   float ideal_wave;
+  int rst; /* reset osc */
   float hp_f;
   float hp_z;
   float vco_count;
@@ -37,6 +39,7 @@ typedef struct _bassemu2
   float vcf_cutoff;
   float vcf_envmod;
   float vcf_envdecay;
+  float decay;
   float vcf_reso;
   float vcf_rescoeff;
   float vcf_a; /* coef */
@@ -45,38 +48,44 @@ typedef struct _bassemu2
   float vcf_env; /* filter envelope */
   float vcf_d1; /* z */
   float vcf_d2;
-  float vcf_e0; /* */
+  float vcf_e0; /* coef */
   float vcf_e1;
   float vcf_acor; /* res -> a cor */
-  int vcf_envpos;
-  float vca_attack;
+  float vcf_eg_lp_z; /* feg lp */
+  float vcf_eg_lp_f;
+  float vca_attack; /* vca */
   float vca_decay;
   float vca_a;
   float vca_a0;
   int vca_mode;
-  float sr;
-} t_bassemu2;
+  float sm_f; /* smooth filters */
+  float cut_z;
+  float res_z;
+  float rcf_z;
+  float env_z;
+  float sr; /* sample rate */
+} t_be2;
 
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_recalc(t_bassemu2 *x)
+inline void be2_recalc(t_be2 *x)
 {
-  x->vcf_e0 = exp(5.613 - 0.8000*(x->vcf_envmod) + 2.1553*(x->vcf_cutoff) - 0.7696*(1.0 - x->vcf_reso));
+  x->vcf_e0 = exp(5.613 - 0.8000*(x->vcf_envmod) + 2.1553*(x->cut_z) 
+                  - 0.7696*(1.0 - x->res_z));
   x->vcf_e0 *=PI/x->sr;
 
-  x->vcf_e1 = exp(6.109 + 1.5876*(x->vcf_envmod) + 2.1553*(x->vcf_cutoff) - 1.2000*(1.0 - x->vcf_reso));
+  x->vcf_e1 = exp(6.109 + 1.5876*(x->env_z) + 2.1553*(x->cut_z) 
+                  - 1.2000*(1.0 - x->res_z));
   x->vcf_e1 *=PI/x->sr;
   x->vcf_e1 = x->vcf_e1 - x->vcf_e0;
   if (x->vcf_e1 > 1.0) x->vcf_e1 = 1.0; // clip
 
-  x->vcf_envpos = ENV_INC;
-
-  x->vcf_acor = 1.0 - (x->vcf_reso * 0.45); // comp res -> lvl
+  x->vcf_acor = 1.0 - (x->res_z * 0.45); // comp res -> lvl
   if (x->vcf_acor < 0.0) x->vcf_acor = 0.0; // clip
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_calc_vco_inc(t_bassemu2 *x)
+static void be2_calc_vco_inc(t_be2 *x)
 {
   float p = x->pitch - 60.;
   p = p * 0.0833334;
@@ -89,15 +98,25 @@ static void bassemu2_calc_vco_inc(t_bassemu2 *x)
 
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_gate(t_bassemu2 *x, t_floatarg f)
+static void be2_calc_decay(t_be2 *x)
+{
+  float f = x->decay * x->sr;
+  x->vcf_envdecay = pow(0.1, (1.0 / f));
+}
+
+// --------------------------------------------------------------------------- #
+static void be2_gate(t_be2 *x, t_floatarg f)
 {
   if(f > 0)
     {
       x->vca_mode = VCA_ATT;
-      x->vcf_envpos = ENV_INC;
       x->vcf_env = x->vcf_e1;
-      x->vcf_d1 = 0.0; /* */
-      x->vcf_d2 = 0.0;
+      if (x->rst)
+        {
+          x->vcf_d1 = 0.0;
+          x->vcf_d2 = 0.0;
+          x->vco_count = 0.0;
+        }
     }
   else
     {
@@ -106,67 +125,64 @@ static void bassemu2_gate(t_bassemu2 *x, t_floatarg f)
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_pitch(t_bassemu2 *x, t_floatarg f)
+static void be2_pitch(t_be2 *x, t_floatarg f)
 {
   x->pitch = f;
-  bassemu2_calc_vco_inc(x);
+  be2_calc_vco_inc(x);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_vco(t_bassemu2 *x, t_floatarg f)
+static void be2_vco(t_be2 *x, t_floatarg f)
 {
   x->vco_type = f;
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_tune(t_bassemu2 *x, t_floatarg f)
+static void be2_tune(t_be2 *x, t_floatarg f)
 {
   x->tune = f;
-  bassemu2_calc_vco_inc(x);
+  be2_calc_vco_inc(x);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_cutoff(t_bassemu2 *x, t_floatarg f)
+static void be2_cutoff(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
   x->vcf_cutoff = f;
-  bassemu2_recalc(x);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_reso(t_bassemu2 *x, t_floatarg f)
+static void be2_reso(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
   f = f*1.55;
   x->vcf_reso = f;
   x->vcf_rescoeff = exp(-1.20 + 3.455*(x->vcf_reso));
-  bassemu2_recalc(x);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_envmod(t_bassemu2 *x, t_floatarg f)
+static void be2_envmod(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
   x->vcf_envmod = f;
-  bassemu2_recalc(x);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_decay(t_bassemu2 *x, t_floatarg f)
+static void be2_decay(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
   f = f*f*f;
   f = 0.044 + (2.2 * f);
-  f = f * x->sr;
-  x->vcf_envdecay = pow(0.1, ((1.0 / f) * ENV_INC));
+  x->decay = f;
+  be2_calc_decay(x);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_pw(t_bassemu2 *x, t_floatarg f)
+static void be2_pw(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
@@ -174,25 +190,34 @@ static void bassemu2_pw(t_bassemu2 *x, t_floatarg f)
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_reset(t_bassemu2 *x)
+static void be2_rst(t_be2 *x, t_floatarg f)
 {
-  x->vcf_a = 0.0;
-  x->vcf_b = 0.0;
-  x->vcf_c = 0.0;
-  x->vcf_envpos = 0;
+  x->rst = f;
+}
+
+// --------------------------------------------------------------------------- #
+static void be2_reset(t_be2 *x)
+{
   x->vca_mode = VCA_SIL;
   x->vca_a = 0.0;
   x->vca_a0 = 0.5;
   x->vca_attack = 1.0 - ((1.0 / x->sr) / 0.0008); // sec
-  x->vca_decay  = 1.0 - ((1.0 / x->sr) / 0.0093); // sec
+  x->vca_decay  = 1.0 - ((1.0 / x->sr) / 0.0043); // sec
   x->hp_f = (PI_2 / x->sr) * HPFREQ;
   x->hp_z = 0.0;
+  x->vcf_eg_lp_f = (PI_2 / x->sr) * FEGLPFREQ;
+  x->vcf_eg_lp_z = 0.0;
+  x->sm_f = (PI_2 / x->sr) * SMFREQ;
+  x->cut_z = 0.0;
+  x->res_z = 0.0;
+  x->rcf_z = 0.0;
+  x->env_z = 0.0;
 }
 
 // --------------------------------------------------------------------------- #
-static t_int *bassemu2_perform(t_int *ww)
+static t_int *be2_perform(t_int *ww)
 {
-  t_bassemu2 *x = (t_bassemu2 *)(ww[1]);
+  t_be2 *x = (t_be2 *)(ww[1]);
   t_float *inbuf = (t_float *)(ww[2]);
   t_float *outbuf = (t_float *)(ww[3]);
   int n = (int)(ww[4]);
@@ -205,153 +230,164 @@ static t_int *bassemu2_perform(t_int *ww)
   // only compute if needed .......
   if (x->vca_mode != VCA_SIL)
     {
-      // begin bassemu2 dsp engine
+      // begin be2 dsp engine
       while(n--)
-	{
-
-	  // update vcf
-	  if(x->vcf_envpos >= ENV_INC)
-	    {
-	      w = x->vcf_e0 + x->vcf_env;
-	      k = exp(-w/x->vcf_rescoeff);
-
-	      x->vcf_a = 2.0*cos(2.0*w) * k;
-	      x->vcf_b = -k*k;
-	      x->vcf_c = 1.0 - x->vcf_a - x->vcf_b;
-
-	      x->vcf_envpos = 0;
-	      x->vcf_env *= x->vcf_envdecay;
-	    }
+        {
+          // vco or ext in
+          switch(x->vco_type)
+            {
+            case VCO_SAW :
+              // count
+              x->vco_count += x->vco_inc;
+              if (x->vco_count > 0.5)
+                x->vco_count = -0.5;
+              
+              // saw
+              x->sig = (x->vco_count + 0.5) * 8.0;
+              if (x->sig > 1.0) x->sig = 1.0;
+              x->sig -= 0.5;
+              x->sig *= 2.5;
+              break;
+              
+            case VCO_RECT :
+              // count
+              x->vco_count += x->vco_inc;
+              if (x->vco_count > 0.5)
+                x->vco_count = -0.5;
+              
+              // pw
+              if (x->vco_count <= x->pw)
+                x->sig = -0.82;
+              else
+                x->sig = 0.8;
+              break;
+              
+            case VCO_EXT :
+              x->sig = (*inbuf++ * 0.48);
+              // clip
+              if (x->sig < -0.48) x->sig = -0.48;
+              if (x->sig > 0.48)  x->sig = 0.48;
+              break;
+              
+            default : 
+              break;
+            }
+          
 	  
-	  // vco or ext in
-	  switch(x->vco_type)
-	    {
-	    case VCO_SAW :
-	      // count
-	      x->vco_count += x->vco_inc;
-	      if (x->vco_count > 0.5)
-		x->vco_count = -0.5;
-	      
-	      // saw
-	      x->sig = (x->vco_count + 0.5) * 8.0;
-	      if (x->sig > 1.0) x->sig = 1.0;
-	      x->sig -= 0.5;
-	      x->sig *= 2.5;
-	      break;
-	      
-	    case VCO_RECT :
-	      // count
-	      x->vco_count += x->vco_inc;
-	      if (x->vco_count > 0.5)
-		x->vco_count = -0.5;
+          // hpf
+          x->hp_z = (x->sig - x->hp_z) * x->hp_f + x->hp_z;
+          ts = x->sig - x->hp_z;
+          
+          
+          // update vca
+          switch(x->vca_mode)
+            {
+            case VCA_ATT :
+              x->vca_a += (x->vca_a0 - x->vca_a) * x->vca_attack;
+              break;
+              
+            case VCA_DEC :
+              x->vca_a *= x->vca_decay;
+              if(x->vca_a < (0.00001))
+                {
+                  x->vca_a = 0;
+                  x->vca_mode = VCA_SIL;
+                }
+              break;
+              
+            default : 
+              break;
+            }
+          
+          // feg and feg lp
+          x->vcf_eg_lp_z = (x->vcf_env - x->vcf_eg_lp_z)
+            * x->vcf_eg_lp_f + x->vcf_eg_lp_z;
+          x->vcf_env *= x->vcf_envdecay;
 
-	      // pw
-	      if (x->vco_count <= x->pw)
-		x->sig = -0.82;
-	      else
-		x->sig = 0.8;
-	      break;
-	      
-	    case VCO_EXT :
-	      x->sig = (*inbuf++ * 0.48);
-	      // clip
-	      if (x->sig < -0.48) x->sig = -0.48;
-	      if (x->sig > 0.48)  x->sig = 0.48;
-	      break;
+          // smooth
+          x->cut_z = (x->vcf_cutoff   - x->cut_z) * x->sm_f + x->cut_z;
+          x->res_z = (x->vcf_reso     - x->res_z) * x->sm_f + x->res_z;
+          x->rcf_z = (x->vcf_rescoeff - x->rcf_z) * x->sm_f + x->rcf_z;
+          x->env_z = (x->vcf_envmod   - x->env_z) * x->sm_f + x->env_z;
+          be2_recalc(x);
 
-	    default : 
-	      break;
-	    }
-	  
-	  
-	  // hpf
-	  x->hp_z = (x->sig - x->hp_z) * x->hp_f + x->hp_z;
-	  ts = x->sig - x->hp_z;
+          // filter coef
+          w = x->vcf_e0 + x->vcf_eg_lp_z;
+          k = exp(-w/x->rcf_z);
+          x->vcf_a = 2.0*cos(2.0*w) * k;
+          x->vcf_b = -k*k;
+          x->vcf_c = 1.0 - x->vcf_a - x->vcf_b;
 
-	  
-	  // update vca
-	  switch(x->vca_mode)
-	    {
-	    case VCA_ATT :
-	      x->vca_a += (x->vca_a0 - x->vca_a) * x->vca_attack;
-	      break;
+          // compute sample
+          ts = ts * x->vca_a;
+          ts = ts * x->vcf_acor;
 
-	    case VCA_DEC :
-	      x->vca_a *= x->vca_decay;
-	      if(x->vca_a < (0.00001))
-		{
-		  x->vca_a = 0;
-		  x->vca_mode = VCA_SIL;
-		}
-	      break;
-
-	    default : 
-	      break;
-	    }
-
-	  // compute sample
-	  ts = ts * x->vca_a;
-	  ts = ts * x->vcf_acor;
-	  // filter
-	  ts = x->vcf_a * x->vcf_d1
-	    +  x->vcf_b * x->vcf_d2
-	    +  x->vcf_c * ts;
-	  x->vcf_d2 = x->vcf_d1;
-	  x->vcf_d1 = ts;
-	  // env
-	  x->vcf_envpos++;
-
-	  // limit (soft-never-clip)
-	  ts *= 0.45;
-	  a = ts;
-	  if (a < 0.) a = 0.-a; // abs
-	  a = a * 0.8;
-	  *(outbuf++) = ts / (a + 1.);
-	}
-    } //end vcamode != 2
+          // filter
+          ts = x->vcf_a * x->vcf_d1
+            +  x->vcf_b * x->vcf_d2
+            +  x->vcf_c * ts;
+          x->vcf_d2 = x->vcf_d1;
+          x->vcf_d1 = ts;
+          
+          // limit (soft-never-clip)
+          ts *= 0.333;
+          a = ts;
+          if (a < 0.) a = 0.-a; // abs
+          a = a * 0.5;
+          *(outbuf++) = ts / (a + 1.);
+        }
+    }
   else
     while(n--)
       {
-	*outbuf++ = 0.0;
+        *outbuf++ = 0.0;
       }
   
   return (ww+5);
 }
 
 // --------------------------------------------------------------------------- #
-static void bassemu2_dsp(t_bassemu2 *x, t_signal **sp)
+static void be2_dsp(t_be2 *x, t_signal **sp)
 {
-  dsp_add(bassemu2_perform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[0]->s_n);
-  x->sr = sp[0]->s_sr;
-  bassemu2_calc_vco_inc(x);
-  bassemu2_recalc(x);
+  dsp_add(be2_perform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[0]->s_n);
+  if (x->sr != sp[0]->s_sr)
+    {
+      x->sr = sp[0]->s_sr;
+      be2_calc_vco_inc(x);
+      be2_calc_decay(x);
+      be2_reset(x);
+    }
 }
 
 // --------------------------------------------------------------------------- #
-static void *bassemu2_new(void)
+static void *be2_new(void)
 {
-  t_bassemu2 *x = (t_bassemu2 *)pd_new(bassemu2_class);
+  t_be2 *x = (t_be2 *)pd_new(be2_class);
   outlet_new(&x->x_obj, gensym("signal"));
   x->sr = 44100.;
-  bassemu2_reset(x);
+  be2_calc_vco_inc(x);
+  be2_calc_decay(x);
+  be2_reset(x);
   return (x);
 }
 
 // --------------------------------------------------------------------------- #
 void bassemu2_tilde_setup(void)
 {
-  bassemu2_class=class_new(gensym("bassemu2~"),(t_newmethod)bassemu2_new,0,sizeof(t_bassemu2),0,A_GIMME,0);
-  class_addmethod(bassemu2_class, nullfn, gensym("signal"), 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_dsp,gensym("dsp"), 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_gate,gensym("gate"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_pitch,gensym("pitch"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_tune,gensym("tune"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_vco,gensym("vco"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_cutoff,gensym("cutoff"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_reso,gensym("reso"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_envmod,gensym("envmod"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_decay,gensym("decay"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_pw,gensym("pw"),A_DEFFLOAT, 0);
-  class_addmethod(bassemu2_class,(t_method)bassemu2_reset,gensym("reset"),0);
+  be2_class=class_new(gensym("bassemu2~"),
+                      (t_newmethod)be2_new,0,sizeof(t_be2),0,A_GIMME,0);
+  class_addmethod(be2_class, nullfn, gensym("signal"), 0);
+  class_addmethod(be2_class,(t_method)be2_dsp,gensym("dsp"), 0);
+  class_addmethod(be2_class,(t_method)be2_gate,gensym("gate"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_pitch,gensym("pitch"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_tune,gensym("tune"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_vco,gensym("vco"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_cutoff,gensym("cutoff"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_reso,gensym("reso"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_envmod,gensym("envmod"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_decay,gensym("decay"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_pw,gensym("pw"),A_DEFFLOAT, 0);
+  class_addmethod(be2_class,(t_method)be2_rst,gensym("rst"),A_DEFFLOAT,0);
+  class_addmethod(be2_class,(t_method)be2_reset,gensym("reset"),0);
 }
 
