@@ -1,11 +1,11 @@
-#N canvas 429 279 891 350 10;
+#N canvas 429 278 891 350 10;
 #X obj 680 256 dac~;
 #X text 335 63 CutOff;
 #X text 389 63 Reso;
 #X text 428 63 EnvMod;
 #X text 478 63 Decay;
-#X obj 777 174 vradio 15 1 1 3 empty empty empty 0 -6 0 8 #fcfcfc #000000
-#000000 1;
+#X obj 777 174 vradio 15 1 1 3 empty empty empty 0 -6 0 8 #bbbbbb #000000
+#000000 0;
 #X obj 777 250 s \$0-to;
 #X msg 777 232 vco \$1;
 #X msg 682 115 tune \$1;
@@ -13,46 +13,46 @@
 #X obj 576 167 r \$0-to;
 #X text 796 173 Saw;
 #X text 796 189 Square;
-#X obj 345 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #fcfcc4
-#000000 #000000 5400 1;
-#X obj 391 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #fce0c4
+#X obj 345 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
 #000000 #000000 0 1;
-#X obj 437 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #fcfcc4
+#X obj 391 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
 #000000 #000000 12700 1;
-#X obj 483 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #fcfcc4
-#000000 #000000 4000 1;
+#X obj 437 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
+#000000 #000000 4900 1;
+#X obj 483 85 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
+#000000 #000000 8800 1;
 #X text 681 75 VCO Tuning:;
-#X msg 345 261 cutoff \$1;
-#X msg 391 281 reso \$1;
-#X obj 437 313 s \$0-to;
-#X msg 437 257 envmod \$1;
-#X msg 483 277 decay \$1;
+#X msg 345 233 cutoff \$1;
+#X msg 391 253 reso \$1;
+#X obj 391 320 s \$0-to;
+#X msg 437 273 envmod \$1;
+#X msg 483 293 decay \$1;
 #X msg 203 118 pitch \$1;
-#X obj 206 84 hsl 129 15 0 128 0 1 empty empty empty -2 -6 0 8 #fcfcfc
-#000000 #000000 3100 1;
+#X obj 206 84 hsl 129 15 0 128 0 1 empty empty empty -2 -6 0 8 #bbbbbb
+#000000 #000000 4400 1;
 #X obj 203 136 s \$0-to;
 #X obj 566 186 bassemu2~;
 #X msg 204 260 reset;
 #X obj 204 278 s \$0-to;
 #X obj 682 94 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 440 256;
+#bbbbbb #000000 #000000 440 256;
 #X obj 702 195 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
 #fcfcfc #000000 #000000 47 256;
 #X obj 702 211 * 0.01;
 #X obj 681 229 *~ 0;
-#X floatatom 203 101 5 0 0 0 - - -;
+#X floatatom 203 101 5 0 0 0 - - - 0;
 #X text 232 63 Pitch;
 #X text 796 206 ExtIn;
 #X obj 568 71 phasor~;
 #X obj 588 93 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 100 256;
+#bbbbbb #000000 #000000 100 256;
 #X obj 588 109 * 0.01;
 #X obj 567 127 *~ 0;
 #X obj 13 42 tgl 15 0 empty empty random_sequence 17 7 0 10 #fcfcfc
-#000000 #000000 1 1;
+#000000 #000000 0 1;
 #X obj 13 77 metro 200;
 #X obj 38 60 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 119 256;
+#bbbbbb #000000 #000000 119 256;
 #X obj 52 114 random 42;
 #X obj 13 95 t b b b;
 #X obj 13 259 delay;
@@ -64,38 +64,34 @@
 #X msg 98 151 pitch \$1;
 #X obj 98 169 s \$0-to;
 #X obj 98 133 + 12;
-#X obj 103 98 nbx 5 14 0 1e+37 0 1 empty empty empty 0 -8 0 10 #fcfcfc
+#X obj 103 98 nbx 5 14 0 1e+37 0 1 empty empty empty 0 -8 0 10 #bbbbbb
 #000000 #000000 16 256;
 #X obj 119 114 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 24 256;
+#bbbbbb #000000 #000000 24 256;
 #X obj 78 187 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 79 256;
+#bbbbbb #000000 #000000 79 256;
 #X obj 78 203 * 0.01;
 #X obj 78 221 t b f;
-#X text 443 5 bassemu2~;
+#X text 415 9 bassemu2~;
 #X text 189 243 Reset note.;
 #X obj 568 54 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 57 256;
+#bbbbbb #000000 #000000 57 256;
 #X obj 201 167 tgl 15 0 empty empty empty 17 7 0 10 #fcfcfc #000000
 #000000 0 1;
 #X text 222 162 Gate;
 #X msg 201 187 gate \$1;
 #X obj 201 205 s \$0-to;
-#X text 344 42 0-1;
-#X text 394 42 0-1;
-#X text 434 42 0-1;
-#X text 484 42 0-1;
 #X text 776 158 Source:;
 #X obj 13 5 key;
 #X obj 13 23 sel 113;
 #X text 51 4 press 'q';
-#X obj 566 248 tgl 15 1 empty empty reset_osc 17 7 0 10 #fcfcfc #000000
+#X obj 566 248 tgl 15 1 empty empty reset_osc 17 7 0 10 #bbbbbb #000000
 #000000 1 1;
 #X msg 566 266 rst \$1;
 #X obj 566 284 s \$0-to;
 #X obj 566 205 s~ \$0-a;
 #X obj 682 171 r~ \$0-a;
-#X obj 776 76 nbx 5 14 0 100 0 1 empty empty Pw 0 -8 0 10 #fcfcfc #000000
+#X obj 776 76 nbx 5 14 0 100 0 1 empty empty Pw 0 -8 0 10 #bbbbbb #000000
 #000000 42 256;
 #X obj 776 92 * 0.01;
 #X msg 776 110 pw \$1;
@@ -114,7 +110,7 @@
 #X connect 22 0 20 0;
 #X connect 23 0 25 0;
 #X connect 24 0 33 0;
-#X connect 26 0 77 0;
+#X connect 26 0 73 0;
 #X connect 27 0 28 0;
 #X connect 29 0 8 0;
 #X connect 30 0 31 0;
@@ -150,11 +146,11 @@
 #X connect 61 0 36 0;
 #X connect 62 0 64 0;
 #X connect 64 0 65 0;
+#X connect 67 0 68 0;
+#X connect 68 0 40 0;
+#X connect 70 0 71 0;
 #X connect 71 0 72 0;
-#X connect 72 0 40 0;
-#X connect 74 0 75 0;
+#X connect 74 0 32 0;
 #X connect 75 0 76 0;
-#X connect 78 0 32 0;
-#X connect 79 0 80 0;
-#X connect 80 0 81 0;
-#X connect 81 0 82 0;
+#X connect 76 0 77 0;
+#X connect 77 0 78 0;
