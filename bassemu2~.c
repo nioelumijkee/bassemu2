@@ -243,7 +243,7 @@ static t_int *be2_perform(t_int *ww)
                 x->vco_count = -0.5;
               
               // saw
-              x->sig = (x->vco_count + 0.5) * 8.0;
+              x->sig = (x->vco_count + 0.5) * 4.0;
               if (x->sig > 1.0) x->sig = 1.0;
               x->sig -= 0.5;
               x->sig *= 2.5;
