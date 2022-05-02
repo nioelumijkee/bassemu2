@@ -176,7 +176,7 @@ static void be2_decay(t_be2 *x, t_floatarg f)
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
   f = f*f*f;
-  f = 0.044 + (2.2 * f);
+  f = 0.06 + (2.2 * f);
   x->decay = f;
   be2_calc_decay(x);
 }
@@ -263,10 +263,7 @@ static t_int *be2_perform(t_int *ww)
               break;
               
             case VCO_EXT :
-              x->sig = (*inbuf++ * 0.48);
-              // clip
-              if (x->sig < -0.48) x->sig = -0.48;
-              if (x->sig > 0.48)  x->sig = 0.48;
+              x->sig = *inbuf++;
               break;
               
             default : 
@@ -287,7 +284,7 @@ static t_int *be2_perform(t_int *ww)
               break;
               
             case VCA_DEC :
-              x->vca_a *= x->vca_decay;
+              x->vca_a -= x->vca_a * x->vca_decay;
               if(x->vca_a < (0.00001))
                 {
                   x->vca_a = 0;
@@ -318,8 +315,7 @@ static t_int *be2_perform(t_int *ww)
           x->vcf_b = -k*k;
           x->vcf_c = 1.0 - x->vcf_a - x->vcf_b;
 
-          // compute sample
-          ts = ts * x->vca_a;
+          /* ts = ts * x->vca_a; */
           ts = ts * x->vcf_acor;
 
           // filter
@@ -328,6 +324,9 @@ static t_int *be2_perform(t_int *ww)
             +  x->vcf_c * ts;
           x->vcf_d2 = x->vcf_d1;
           x->vcf_d1 = ts;
+
+          ts = ts * x->vca_a;
+
           
           // limit (soft-never-clip)
           ts *= 0.333;
