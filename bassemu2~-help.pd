@@ -1,4 +1,4 @@
-#N canvas 437 259 891 350 10;
+#N canvas 162 258 894 344 10;
 #X obj 680 199 dac~;
 #X text 335 41 CutOff;
 #X text 389 41 Reso;
@@ -14,34 +14,34 @@
 #X text 796 124 Saw;
 #X text 796 140 Square;
 #X obj 345 63 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
-#000000 #000000 12700 1;
+#000000 #000000 6600 1;
 #X obj 391 63 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
-#000000 #000000 0 1;
+#000000 #000000 12500 1;
 #X obj 437 63 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
-#000000 #000000 12700 1;
+#000000 #000000 6300 1;
 #X obj 483 63 vsl 25 128 0 1 0 1 empty empty empty 0 -8 0 8 #bbbbbb
-#000000 #000000 9800 1;
+#000000 #000000 3200 1;
 #X text 681 18 VCO Tuning:;
 #X msg 345 211 cutoff \$1;
 #X msg 391 231 reso \$1;
 #X obj 391 298 s \$0-to;
 #X msg 437 251 envmod \$1;
 #X msg 483 271 decay \$1;
-#X msg 203 96 pitch \$1;
-#X obj 206 62 hsl 129 15 0 128 0 1 empty empty empty -2 -6 0 8 #bbbbbb
+#X msg 183 96 pitch \$1;
+#X obj 186 62 hsl 129 15 0 128 0 1 empty empty empty -2 -6 0 8 #bbbbbb
 #000000 #000000 4400 1;
-#X obj 203 114 s \$0-to;
+#X obj 183 114 s \$0-to;
 #X obj 566 164 bassemu2~;
-#X msg 204 238 reset;
-#X obj 204 256 s \$0-to;
+#X msg 140 247 reset;
+#X obj 140 265 s \$0-to;
 #X obj 682 37 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
 #bbbbbb #000000 #000000 440 256;
 #X obj 702 138 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
-#fcfcfc #000000 #000000 47 256;
+#fcfcfc #000000 #000000 35 256;
 #X obj 702 154 * 0.01;
 #X obj 681 172 *~ 0;
-#X floatatom 203 79 5 0 0 0 - - - 0;
-#X text 232 41 Pitch;
+#X floatatom 183 79 5 0 0 0 - - - 0;
+#X text 212 41 Pitch;
 #X text 796 157 ExtIn;
 #X obj 568 49 phasor~;
 #X obj 588 71 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
@@ -73,22 +73,22 @@
 #X obj 78 203 * 0.01;
 #X obj 78 221 t b f;
 #X text 415 9 bassemu2~;
-#X text 189 221 Reset note.;
+#X text 130 229 Reset note.;
 #X obj 568 32 nbx 5 14 -1e+37 1e+37 0 1 empty empty empty 0 -8 0 10
 #bbbbbb #000000 #000000 57 256;
-#X obj 201 145 tgl 15 0 empty empty empty 17 7 0 10 #fcfcfc #000000
+#X obj 181 145 tgl 15 0 empty empty empty 17 7 0 10 #fcfcfc #000000
 #000000 0 1;
-#X text 222 140 Gate;
-#X msg 201 165 gate \$1;
-#X obj 201 183 s \$0-to;
+#X text 202 140 Gate;
+#X msg 181 165 gate \$1;
+#X obj 181 183 s \$0-to;
 #X text 776 109 Source:;
 #X obj 13 5 key;
 #X obj 13 23 sel 113;
 #X text 51 4 press 'q';
-#X obj 274 261 tgl 15 1 empty empty reset_osc 17 7 0 10 #bbbbbb #000000
+#X obj 202 269 tgl 15 1 empty empty reset_osc 17 7 0 10 #bbbbbb #000000
 #000000 0 1;
-#X msg 274 279 rst \$1;
-#X obj 274 297 s \$0-to;
+#X msg 202 287 rst \$1;
+#X obj 202 305 s \$0-to;
 #X obj 567 186 s~ \$0-a;
 #X obj 682 114 r~ \$0-a;
 #X obj 776 37 nbx 5 14 0 100 0 1 empty empty Pw 0 -8 0 10 #bbbbbb #000000
@@ -96,14 +96,19 @@
 #X obj 776 53 * 0.01;
 #X msg 776 71 pw \$1;
 #X obj 776 89 s \$0-to;
-#X obj 549 285 tabwrite~ \$0-scope;
-#X obj 561 266 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc
+#X obj 558 310 tabwrite~ \$0-scope;
+#X obj 570 291 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc
 #000000 #000000;
-#X obj 550 246 r~ \$0-a;
+#X obj 559 271 r~ \$0-a;
 #N canvas 0 50 450 250 (subpatch) 0;
 #X array \$0-scope 1024 float 2;
 #X coords 0 0.3 1024 -0.3 200 80 1 0 0;
 #X restore 678 246 graph;
+#X obj 257 179 nbx 5 14 0 100 0 1 empty empty Rel 0 -8 0 10 #bbbbbb
+#000000 #000000 0 256;
+#X obj 257 195 * 0.01;
+#X obj 257 231 s \$0-to;
+#X msg 257 213 rel \$1;
 #X connect 5 0 7 0;
 #X connect 7 0 6 0;
 #X connect 8 0 9 0;
@@ -164,3 +169,6 @@
 #X connect 77 0 78 0;
 #X connect 80 0 79 0;
 #X connect 81 0 79 0;
+#X connect 83 0 84 0;
+#X connect 84 0 86 0;
+#X connect 86 0 85 0;

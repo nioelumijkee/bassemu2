@@ -58,6 +58,7 @@ typedef struct _be2
   float vca_a;
   float vca_a0;
   int vca_mode;
+  float vca_dec;
   float sm_f; /* smooth filters */
   float cut_z;
   float res_z;
@@ -102,6 +103,13 @@ static void be2_calc_decay(t_be2 *x)
 {
   float f = x->decay * x->sr;
   x->vcf_envdecay = pow(0.1, (1.0 / f));
+}
+
+// --------------------------------------------------------------------------- #
+static void be2_calc_rel(t_be2 *x)
+{
+  float f = (x->vca_dec * 0.15) + 0.001;
+  x->vca_decay  = ((1.0 / x->sr) / f); // sec
 }
 
 // --------------------------------------------------------------------------- #
@@ -196,13 +204,21 @@ static void be2_rst(t_be2 *x, t_floatarg f)
 }
 
 // --------------------------------------------------------------------------- #
+static void be2_rel(t_be2 *x, t_floatarg f)
+{
+  if      (f > 1.0) f = 1.0;
+  else if (f < 0.0) f = 0.0;
+  x->vca_dec = f*f*f;
+  be2_calc_rel(x);
+}
+
+// --------------------------------------------------------------------------- #
 static void be2_reset(t_be2 *x)
 {
   x->vca_mode = VCA_SIL;
   x->vca_a = 0.0;
   x->vca_a0 = 0.5;
   x->vca_attack = 1.0 - ((1.0 / x->sr) / 0.0008); // sec
-  x->vca_decay  = 1.0 - ((1.0 / x->sr) / 0.0043); // sec
   x->hp_f = (PI_2 / x->sr) * HPFREQ;
   x->hp_z = 0.0;
   x->vcf_eg_lp_f = (PI_2 / x->sr) * FEGLPFREQ;
@@ -334,6 +350,7 @@ static t_int *be2_perform(t_int *ww)
           if (a < 0.) a = 0.-a; // abs
           a = a * 0.5;
           *(outbuf++) = ts / (a + 1.);
+          /* *(outbuf++) = x->vca_a * ts; */
         }
     }
   else
@@ -387,6 +404,7 @@ void bassemu2_tilde_setup(void)
   class_addmethod(be2_class,(t_method)be2_decay,gensym("decay"),A_DEFFLOAT, 0);
   class_addmethod(be2_class,(t_method)be2_pw,gensym("pw"),A_DEFFLOAT, 0);
   class_addmethod(be2_class,(t_method)be2_rst,gensym("rst"),A_DEFFLOAT,0);
+  class_addmethod(be2_class,(t_method)be2_rel,gensym("rel"),A_DEFFLOAT,0);
   class_addmethod(be2_class,(t_method)be2_reset,gensym("reset"),0);
 }
 
