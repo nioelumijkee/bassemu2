@@ -4,15 +4,21 @@
 
 #include "m_pd.h"
 #include <math.h>
+#include "include/saw441.h"
+#include "include/pls441.h"
 
 // -------------------------------------------------------------------------- //
 static t_class *be2_class;
 
 #define PI   	   3.141592653589793
 #define PI_2   	   6.283185307179586
-#define VCO_SAW    0
-#define VCO_RECT   1
-#define VCO_EXT    2
+enum {
+  VCO_SAW=0,
+  VCO_RECT,
+  VCO_SSAW,
+  VCO_SRECT,
+  VCO_EXT,
+};
 #define VCA_ATT    0
 #define VCA_DEC    1
 #define VCA_OFF    2
@@ -31,6 +37,9 @@ typedef struct _be2
   
   // smooth
   t_float sm_f; 
+
+  // in
+  t_float in_level;
 
   // hp filter
   t_float hp_f;
@@ -187,8 +196,8 @@ static void be2_decay(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  f = f*f*f;
-  f = 0.06 + (2.2 * f);
+  f = f*f*f*f;
+  f = 0.06 + (1.5 * f);
   x->vcf_decay = f;
   be2_calc_decay(x);
 }
@@ -197,7 +206,7 @@ static void be2_pw(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  x->vco_pw = f - 0.5;
+  x->vco_pw = f;
 }
 
 static void be2_rst(t_be2 *x, t_floatarg f)
@@ -213,6 +222,11 @@ static void be2_rel(t_be2 *x, t_floatarg f)
   be2_calc_rel(x);
 }
 
+static void be2_in(t_be2 *x, t_floatarg f)
+{
+  x->in_level = f;
+}
+
 // -------------------------------------------------------------------------- //
 // dsp /////////////////////////////////////////////////////////////////////////
 // -------------------------------------------------------------------------- //
@@ -223,10 +237,12 @@ static t_int *be2_perform(t_int *ww)
   t_float *outbuf = (t_float *)(ww[3]);
   int n = (int)(ww[4]);
   
+  int i0, i1;
   t_float a;
   t_float w = 0;
   t_float k = 0;
   t_float f;
+  t_float sig;
   
   // only compute if needed .......
   if (x->vca_mode != VCA_OFF)
@@ -238,44 +254,60 @@ static t_int *be2_perform(t_int *ww)
           switch(x->vco_type)
             {
             case VCO_SAW :
-              // count
               x->vco_count += x->vco_inc;
-              if (x->vco_count > 0.5)
-                x->vco_count = -0.5;
-              
-              // saw
-              x->vco_sig = (x->vco_count + 0.5) * 4.0;
-              if (x->vco_sig > 1.0) x->vco_sig = 1.0;
-              x->vco_sig -= 0.5;
-              x->vco_sig *= 2.5;
+              if (x->vco_count > 1.0)
+                x->vco_count = 0.0;
+              sig = x->vco_count * 4.0;
+              if (sig > 1.0) sig = 1.0;
+              sig -= 0.5;
+              sig *= 3.0;
               break;
               
             case VCO_RECT :
-              // count
               x->vco_count += x->vco_inc;
-              if (x->vco_count > 0.5)
-                x->vco_count = -0.5;
-              
-              // pw
-              if (x->vco_count <= x->vco_pw)
-                x->vco_sig = -0.82;
+              if (x->vco_count > 1.0)
+                x->vco_count = 0.0;
+              if (x->vco_count < x->vco_pw)
+                sig = 1.0;
               else
-                x->vco_sig = 0.8;
+                sig = -1.0;
               break;
               
-            case VCO_EXT :
-              x->vco_sig = *inbuf++;
-              break;
+            case VCO_SSAW :
+              x->vco_count += x->vco_inc;
+              if (x->vco_count > 1.0)
+                x->vco_count = 0.0;
+	      a = x->vco_count*440; // 0 ... 440
+	      i0 = a;
+	      i1 = i0 + 1;
+	      a = a - i0;
+	      sig = (saw441[i1] - saw441[i0]) * a + saw441[i0];
+	      sig *= 4.0;
+            break;
+
+            case VCO_SRECT :
+              x->vco_count += x->vco_inc;
+              if (x->vco_count > 1.0)
+                x->vco_count = 0.0;
+	      a = x->vco_count*440; // 0 ... 440
+	      i0 = a;
+	      i1 = i0 + 1;
+	      a = a - i0;
+	      sig = (pls441[i1] - pls441[i0]) * a + pls441[i0];
+	      sig *= 4.0;
+            break;
               
-            default : 
+            default : // VCO_EXT
+              sig = *inbuf++;
               break;
             }
-          
+
+	  // pre
+	  sig *= x->in_level;
 	  
           // hpf
-          x->hp_z = (x->vco_sig - x->hp_z) * x->hp_f + x->hp_z;
-          f = x->vco_sig - x->hp_z;
-          
+          x->hp_z = (sig - x->hp_z) * x->hp_f + x->hp_z;
+          f = sig - x->hp_z;
           
           // update vca
           switch(x->vca_mode)
@@ -298,10 +330,10 @@ static t_int *be2_perform(t_int *ww)
             }
           
           // feg and feg lp
-          x->vcf_eg_lp_z = (x->vcf_eg - x->vcf_eg_lp_z)
-            * x->vcf_eg_lp_f + x->vcf_eg_lp_z;
           x->vcf_eg *= x->vcf_envdecay;
-
+	  x->vcf_eg_lp_z = (x->vcf_eg - x->vcf_eg_lp_z)
+            * x->vcf_eg_lp_f + x->vcf_eg_lp_z;
+	  
           // smooth
           x->vcf_cut_z = (x->vcf_cut - x->vcf_cut_z) * x->sm_f + x->vcf_cut_z;
           x->vcf_res_z = (x->vcf_res - x->vcf_res_z) * x->sm_f + x->vcf_res_z;
@@ -309,7 +341,8 @@ static t_int *be2_perform(t_int *ww)
           x->vcf_env_z = (x->vcf_env - x->vcf_env_z) * x->sm_f + x->vcf_env_z;
 
 	  // calc coef
-	  x->vcf_e0 = exp(5.613 - 0.8000*(x->vcf_env) 
+	  /* x->vcf_e0 = exp(5.613 - 0.8000*(x->vcf_env_z)  */
+	  x->vcf_e0 = exp(5.613 - 1.0000*(x->vcf_env_z) 
 			  + 2.1553*(x->vcf_cut_z) 
 			  - 0.7696*(1.0 - x->vcf_res_z));
 	  x->vcf_e0 *=PI/x->sr;
@@ -345,11 +378,12 @@ static t_int *be2_perform(t_int *ww)
           f = f * x->vca_a;
           
           // limit (soft-never-clip)
-          f *= 0.333;
+          /* f *= 0.5; */
           a = f;
           if (a < 0.) a = 0.-a; // abs
           a = a * 0.5;
           *(outbuf++) = f / (a + 1.);
+          /* *(outbuf++) = f; */
         }
     }
   else
@@ -406,6 +440,7 @@ void bassemu2_tilde_setup(void)
   class_addmethod(be2_class,(t_method)be2_pw,gensym("pw"),A_DEFFLOAT, 0);
   class_addmethod(be2_class,(t_method)be2_rst,gensym("rst"),A_DEFFLOAT,0);
   class_addmethod(be2_class,(t_method)be2_rel,gensym("rel"),A_DEFFLOAT,0);
+  class_addmethod(be2_class,(t_method)be2_in,gensym("in"),A_DEFFLOAT,0);
   class_addmethod(be2_class,(t_method)be2_reset,gensym("reset"),0);
 }
 
