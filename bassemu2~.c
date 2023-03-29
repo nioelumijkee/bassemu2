@@ -25,6 +25,7 @@ enum {
 #define HPFREQ     50.0
 #define FEGLPFREQ  300.0
 #define SMFREQ     22.0
+#define ACCAEGLPFREQ  50.0
 
 
 typedef struct _be2
@@ -84,6 +85,14 @@ typedef struct _be2
   t_float vca_a0;
   int     vca_mode;
   t_float vca_dec;
+
+  // accent
+  t_float decay;
+  t_float accent;
+  t_float accent_to_amp;
+  int     acc;
+  t_float acc_eg_lp_z;
+  t_float acc_eg_lp_f;
 } t_be2;
 
 
@@ -113,6 +122,24 @@ static void be2_calc_rel(t_be2 *x)
   x->vca_decay  = ((1.0 / x->sr) / f); // sec
 }
 
+static void be2_calc_acc(t_be2 *x)
+{
+  t_float f;
+  if (x->acc)
+    {
+      x->vcf_decay = 0.06;
+      x->accent_to_amp = x->accent * 5;
+    }
+  else
+    {
+      f = x->decay;
+      f = f*f*f*f;
+      f = 0.06 + (1.5 * f);
+      x->vcf_decay = f;
+      x->accent_to_amp = 0;
+    }
+}
+
 static void be2_reset(t_be2 *x)
 {
   x->vca_mode = VCA_OFF;
@@ -128,6 +155,8 @@ static void be2_reset(t_be2 *x)
   x->vcf_res_z = 0.0;
   x->vcf_rcf_z = 0.0;
   x->vcf_env_z = 0.0;
+  x->acc_eg_lp_f = (PI_2 / x->sr) * ACCAEGLPFREQ;
+  x->acc_eg_lp_z = 0.0;
 }
 
 // -------------------------------------------------------------------------- //
@@ -196,9 +225,8 @@ static void be2_decay(t_be2 *x, t_floatarg f)
 {
   if      (f > 1.0) f = 1.0;
   else if (f < 0.0) f = 0.0;
-  f = f*f*f*f;
-  f = 0.06 + (1.5 * f);
-  x->vcf_decay = f;
+  x->decay = f;
+  be2_calc_acc(x);
   be2_calc_decay(x);
 }
 
@@ -225,6 +253,18 @@ static void be2_rel(t_be2 *x, t_floatarg f)
 static void be2_in(t_be2 *x, t_floatarg f)
 {
   x->in_level = f;
+}
+
+static void be2_accent(t_be2 *x, t_floatarg f)
+{
+  x->accent = f;
+}
+
+static void be2_acc(t_be2 *x, t_floatarg f)
+{
+  x->acc = (f>0);
+  be2_calc_acc(x);
+  be2_calc_decay(x);
 }
 
 // -------------------------------------------------------------------------- //
@@ -307,7 +347,7 @@ static t_int *be2_perform(t_int *ww)
 	  
           // hpf
           x->hp_z = (sig - x->hp_z) * x->hp_f + x->hp_z;
-          f = sig - x->hp_z;
+          sig = sig - x->hp_z;
           
           // update vca
           switch(x->vca_mode)
@@ -328,12 +368,24 @@ static t_int *be2_perform(t_int *ww)
             default : 
               break;
             }
-          
+         
           // feg and feg lp
           x->vcf_eg *= x->vcf_envdecay;
 	  x->vcf_eg_lp_z = (x->vcf_eg - x->vcf_eg_lp_z)
             * x->vcf_eg_lp_f + x->vcf_eg_lp_z;
-	  
+
+	  // acc aeg lp
+	  if (x->vcf_e1 > 0)
+	    {
+	      f = x->vcf_eg / x->vcf_e1;
+	    }
+	  else
+	    {
+	      f = 0;
+	    }
+          x->acc_eg_lp_z = (f - x->acc_eg_lp_z)
+	    * x->acc_eg_lp_f + x->acc_eg_lp_z;
+
           // smooth
           x->vcf_cut_z = (x->vcf_cut - x->vcf_cut_z) * x->sm_f + x->vcf_cut_z;
           x->vcf_res_z = (x->vcf_res - x->vcf_res_z) * x->sm_f + x->vcf_res_z;
@@ -365,17 +417,20 @@ static t_int *be2_perform(t_int *ww)
           x->vcf_c = 1.0 - x->vcf_a - x->vcf_b;
 
 	  // correction ampitude
-          f = f * x->vcf_acor;
+          sig = (sig * x->vcf_acor);
 
           // filter
           f = x->vcf_a * x->vcf_d1
             +  x->vcf_b * x->vcf_d2
-            +  x->vcf_c * f;
+            +  x->vcf_c * sig;
           x->vcf_d2 = x->vcf_d1;
           x->vcf_d1 = f;
 
 	  // vca
           f = f * x->vca_a;
+
+	  // acc to amp
+	  f += x->acc_eg_lp_z * x->accent_to_amp * f;
           
           // limit (soft-never-clip)
           /* f *= 0.5; */
@@ -441,6 +496,8 @@ void bassemu2_tilde_setup(void)
   class_addmethod(be2_class,(t_method)be2_rst,gensym("rst"),A_DEFFLOAT,0);
   class_addmethod(be2_class,(t_method)be2_rel,gensym("rel"),A_DEFFLOAT,0);
   class_addmethod(be2_class,(t_method)be2_in,gensym("in"),A_DEFFLOAT,0);
+  class_addmethod(be2_class,(t_method)be2_accent,gensym("accent"),A_DEFFLOAT,0);
+  class_addmethod(be2_class,(t_method)be2_acc,gensym("acc"),A_DEFFLOAT,0);
   class_addmethod(be2_class,(t_method)be2_reset,gensym("reset"),0);
 }
 
